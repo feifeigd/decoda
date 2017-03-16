@@ -50,8 +50,7 @@ struct Memory
  * lua_Reader function used to read from a memory buffer.
  */
 const char* MemoryReader(lua_State* L, void* data, size_t* size)
-{
-    
+{    
     Memory* memory = static_cast<Memory*>(data);
     
     if (memory->size > 0)
@@ -60,16 +59,11 @@ const char* MemoryReader(lua_State* L, void* data, size_t* size)
         memory->size = 0;
         return memory->buffer;
     }
-    else
-    {
-        return NULL;
-    }
-
+    return nullptr;
 }
 
 bool DebugBackend::Script::GetHasBreakPoint(unsigned int line) const
-{
-    
+{    
     for (size_t i = 0; i < breakpoints.size(); i++)
     {
         if(breakpoints[i] == line)
@@ -82,8 +76,7 @@ bool DebugBackend::Script::GetHasBreakPoint(unsigned int line) const
 }
 
 bool DebugBackend::Script::HasBreakPointInRange(unsigned int start, unsigned int end) const
-{
-    
+{    
     for (size_t i = 0; i < breakpoints.size(); i++)
     {
         if(breakpoints[i] >= start && breakpoints[i] < end)
@@ -97,7 +90,6 @@ bool DebugBackend::Script::HasBreakPointInRange(unsigned int start, unsigned int
 
 bool DebugBackend::Script::ToggleBreakpoint(unsigned int line)
 {
-
     std::vector<unsigned int>::iterator result = std::find(breakpoints.begin(), breakpoints.end(), line);
 
     if (result == breakpoints.end())
@@ -150,7 +142,6 @@ DebugBackend::DebugBackend()
 
 DebugBackend::~DebugBackend()
 {
-
     // Check if we successfully hooked the functions. If we didn't, send a warning.
     if (!GetIsLuaLoaded())
     {
@@ -197,12 +188,10 @@ DebugBackend::~DebugBackend()
 
     m_scripts.clear();
     m_nameToScript.clear();
-
 }
 
 void DebugBackend::CreateApi(unsigned long apiIndex)
 {
-
     // Make room for the data for this api.
     if (m_apis.size() < apiIndex + 1)
     {
@@ -215,12 +204,10 @@ void DebugBackend::CreateApi(unsigned long apiIndex)
     // Create instances of the functions will need to use as callbacks with this API.
     m_apis[apiIndex].IndexChained    = CreateCFunction(apiIndex, IndexChained);
     m_apis[apiIndex].NewIndexChained = CreateCFunction(apiIndex, NewIndexChained);
-
 }
 
 void DebugBackend::Log(const char* fmt, ...)
 {
-
     if (m_log == NULL)
     {
         char fileName[_MAX_PATH];
@@ -233,7 +220,6 @@ void DebugBackend::Log(const char* fmt, ...)
 
     if (m_log != NULL)
     {
-
         char buffer[1024];
 
         va_list    ap;
@@ -244,14 +230,11 @@ void DebugBackend::Log(const char* fmt, ...)
 
         fputs(buffer, m_log);
         fflush(m_log);
-
     }
-
 }
 
 bool DebugBackend::Initialize(HINSTANCE hInstance)
 {
-
     DWORD processId = GetCurrentProcessId();
 
     char eventChannelName[256];
@@ -297,12 +280,10 @@ bool DebugBackend::Initialize(HINSTANCE hInstance)
     m_eventChannel.Flush();
 
     return true;
-
 }
 
 DebugBackend::VirtualMachine* DebugBackend::AttachState(unsigned long api, lua_State* L)
 {
-
     if (!GetIsAttached())
     {
         return NULL;
@@ -382,7 +363,6 @@ DebugBackend::VirtualMachine* DebugBackend::AttachState(unsigned long api, lua_S
 
 void DebugBackend::DetachState(unsigned long api, lua_State* L)
 {
-
     CriticalSectionLock lock1(m_criticalSection);
 
     // Remove all of the class names associated with this state.
@@ -407,13 +387,11 @@ void DebugBackend::DetachState(unsigned long api, lua_State* L)
 
     if (stateIterator != m_stateToVm.end())
     {
-
         m_eventChannel.WriteUInt32(EventId_DestroyVM);
         m_eventChannel.WriteUInt32(reinterpret_cast<int>(L));
         m_eventChannel.Flush();
 
-        m_stateToVm.erase(stateIterator);
-    
+        m_stateToVm.erase(stateIterator);    
     }
 
     for (unsigned int i = 0; i < m_vms.size(); ++i)
@@ -426,12 +404,10 @@ void DebugBackend::DetachState(unsigned long api, lua_State* L)
             m_vms.erase(m_vms.begin() + i);
         }
     }
-
 }
 
 int DebugBackend::PostLoadScript(unsigned long api, int result, lua_State* L, const char* source, size_t size, const char* name)
 {
-
     if (!GetIsAttached())
     {
         return result;
@@ -1042,17 +1018,14 @@ bool DebugBackend::GetIsAttached() const
 
 void DebugBackend::CommandThreadProc()
 {
-
     unsigned int commandId;
 
     bool continueRunning = false;
 
     while (m_commandChannel.ReadUInt32(commandId))
     {
-
         if (commandId == CommandId_Detach)
-        {
-            
+        {            
             m_commandChannel.ReadBool(continueRunning);
 
             // Detach the hook function from all of the script virtual machines.
@@ -1080,8 +1053,7 @@ void DebugBackend::CommandThreadProc()
             else
             {
                 break;
-            }
-            
+            }            
         }
         else if (commandId == CommandId_IgnoreException)
         {
@@ -1091,7 +1063,6 @@ void DebugBackend::CommandThreadProc()
         }
         else
         {
-
             unsigned int vm;
             m_commandChannel.ReadUInt32(vm);
 
@@ -1155,11 +1126,8 @@ void DebugBackend::CommandThreadProc()
             case CommandId_LoadDone:
                 SetEvent(m_loadEvent);
                 break;
-
             }
-
         }
-
     }
 
     // Cleanup.
@@ -1178,8 +1146,7 @@ void DebugBackend::CommandThreadProc()
     m_stateToVm.clear();
 
     m_eventChannel.Destroy();
-    m_commandChannel.Destroy();
-    
+    m_commandChannel.Destroy();    
 }
 
 DWORD WINAPI DebugBackend::StaticCommandThreadProc(LPVOID param)
@@ -1724,7 +1691,6 @@ bool DebugBackend::CreateEnvironment(unsigned long api, lua_State* L, int stackL
 
 int DebugBackend::IndexChained(unsigned long api, lua_State* L)
 {
-
     LUA_CHECK_STACK(api, L, 1)
 
     int key = 2;
@@ -1764,7 +1730,6 @@ int DebugBackend::IndexChained(unsigned long api, lua_State* L)
     }
 
     return 1;
-
 }
 
 int DebugBackend::NewIndexChained(unsigned long api, lua_State* L)
@@ -2785,17 +2750,14 @@ int DebugBackend::LoadScriptWithoutIntercept(unsigned long api, lua_State* L, co
 
 DWORD WINAPI DebugBackend::FinishInitialize(LPVOID param)
 {
-
     const char* symbolsDirectory = static_cast<const char*>(param);
 
     extern HINSTANCE g_hInstance;
     return static_cast<DWORD>(InstallLuaHooker(g_hInstance, symbolsDirectory));
-
 }
 
 unsigned long DebugBackend::GetApiForVm(lua_State* L) const
 {
-
     StateToVmMap::const_iterator iterator = m_stateToVm.find(L);
 
     if (iterator == m_stateToVm.end())
@@ -2805,7 +2767,6 @@ unsigned long DebugBackend::GetApiForVm(lua_State* L) const
     }
 
     return iterator->second->api;
-
 }
 
 void DebugBackend::IgnoreException(const std::string& message)
@@ -3188,18 +3149,15 @@ int DebugBackend::GetStackDepth(unsigned long api, lua_State* L) const
 
 DebugBackend::VirtualMachine* DebugBackend::GetVm(lua_State* L)
 {
-
     StateToVmMap::iterator stateIterator = m_stateToVm.find(L);
     assert(stateIterator != m_stateToVm.end());
 
     if (stateIterator != m_stateToVm.end())
     {
         return stateIterator->second;
-
     }
 
-    return NULL;
-
+    return nullptr;
 }
 
 unsigned int DebugBackend::GetUnifiedStack(unsigned long api, const StackEntry nativeStack[], unsigned int nativeStackSize, const lua_Debug scriptStack[], unsigned int scriptStackSize, StackEntry stack[])
@@ -3270,6 +3228,4 @@ unsigned int DebugBackend::GetUnifiedStack(unsigned long api, const StackEntry n
     }
 
     return stackSize;
-
 }
-

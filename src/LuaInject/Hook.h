@@ -35,6 +35,7 @@ bool GetIsHooked(void* function, void* hook);
  * function. The function returns a pointer to a new function that can
  * be used to call the original function (or NULL if there was an error).
  */
+/// @return 拷贝后的function机器码起始地址
 void* HookFunction(void* function, void* hook);
 
 /**
@@ -48,6 +49,7 @@ void* HookFunction(void* function, void* hook);
 void* HookFunction(void* function, void* hook, unsigned long upValue);
 
 /**
+@return 对外开发的函数，调用的时候，会插入upvalue然后调用function
  */
 void* InstanceFunction(void* function, unsigned long upValue);
 

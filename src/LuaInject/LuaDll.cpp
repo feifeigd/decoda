@@ -27,6 +27,7 @@ along with Decoda.  If not, see <http://www.gnu.org/licenses/>.
 #include "CriticalSection.h"
 #include "CriticalSectionLock.h"
 #include "DebugHelp.h"
+#include "PE.h"
 
 #include <windows.h>
 #include <tlhelp32.h>
@@ -207,7 +208,6 @@ typedef LONG            (WINAPI *LdrUnlockLoaderLock_t)         (ULONG flags, UL
  */
 struct LuaInterface
 {
-
     int                          version;   // One of 401, 500, 510, 520
     bool                         finishedLoading;
 
@@ -371,7 +371,6 @@ struct LuaInterface
     lua_CFunction                DecodaOutput;
     lua_CFunction                CPCallHandler;
     lua_Hook                     HookHandler;
-
 };
 
 struct CPCallHandlerArgs
@@ -449,7 +448,7 @@ stdext::hash_set<std::string>   g_warnedAboutPdb;   // Indicates that we've warn
 bool                            g_warnedAboutThreads = false;
 bool                            g_warnedAboutJit     = false;
 
-std::string                     g_symbolsDirectory;
+std::string                     g_symbolsDirectory;	// pdb目录，分号分隔
 static DWORD                    g_disableInterceptIndex = 0;
 bool                            g_initializedDebugHelp = false; 
 
@@ -472,8 +471,7 @@ struct Memory
  * lua_Reader function used to read from a memory buffer.
  */
 const char* MemoryReader_cdecl(lua_State* L, void* data, size_t* size)
-{
-    
+{    
     Memory* memory = static_cast<Memory*>(data);
     
     if (memory->size > 0)
@@ -486,15 +484,13 @@ const char* MemoryReader_cdecl(lua_State* L, void* data, size_t* size)
     {
         return NULL;
     }
-
 }
 
 /**
  * lua_Reader function used to read from a memory buffer.
  */
 const char* __stdcall MemoryReader_stdcall(lua_State* L, void* data, size_t* size)
-{
-    
+{    
     Memory* memory = static_cast<Memory*>(data);
     
     if (memory->size > 0)
@@ -507,26 +503,22 @@ const char* __stdcall MemoryReader_stdcall(lua_State* L, void* data, size_t* siz
     {
         return NULL;
     }
-
 }
 
 #pragma auto_inline(off)
 int DecodaOutputWorker(unsigned long api, lua_State* L, bool& stdcall)
 {
-
     stdcall = g_interfaces[api].stdcall;
 
     const char* message = lua_tostring_dll(api, L, 1);
     DebugBackend::Get().Message(message);
     
     return 0;
-
 }
 #pragma auto_inline()
 
 __declspec(naked) int DecodaOutput(unsigned long api, lua_State* L)
 {
-
     int result;
     bool stdcall;
 
@@ -535,13 +527,11 @@ __declspec(naked) int DecodaOutput(unsigned long api, lua_State* L)
     result = DecodaOutputWorker(api, L, stdcall);
 
     INTERCEPT_EPILOG(4)
-
 }
 
 #pragma auto_inline(off)
 int CPCallHandlerWorker(unsigned long api, lua_State* L, bool& stdcall)
-{
-    
+{    
     stdcall = g_interfaces[api].stdcall;
     CPCallHandlerArgs args = *static_cast<CPCallHandlerArgs*>(lua_touserdata_dll(api, L, 1));
 
@@ -550,13 +540,11 @@ int CPCallHandlerWorker(unsigned long api, lua_State* L, bool& stdcall)
     lua_pushlightuserdata_dll(api, L, args.data);
 
     return args.function(api, L);
-
 }
 #pragma auto_inline()
 
 __declspec(naked) int CPCallHandler(unsigned long api, lua_State* L)
 {
-
     int result;
     bool stdcall;
         
@@ -565,7 +553,6 @@ __declspec(naked) int CPCallHandler(unsigned long api, lua_State* L)
     result = CPCallHandlerWorker(api, L, stdcall);
 
     INTERCEPT_EPILOG(4)
-
 }
 
 int lua_cpcall_dll(unsigned long api, lua_State *L, lua_CFunction_dll func, void *udn)
@@ -592,7 +579,6 @@ void HookHandlerWorker(unsigned long api, lua_State* L, lua_Debug* ar,  bool& st
 
 __declspec(naked) void HookHandler(unsigned long api, lua_State* L, lua_Debug* ar)
 {
-
     bool stdcall;
 
     INTERCEPT_PROLOG()
@@ -600,37 +586,33 @@ __declspec(naked) void HookHandler(unsigned long api, lua_State* L, lua_Debug* a
     HookHandlerWorker(api, L, ar, stdcall);
 
     INTERCEPT_EPILOG_NO_RETURN(8)
-
 }
 
 void SetHookMode(unsigned long api, lua_State* L, HookMode mode)
 {
+	if(mode == HookMode_None)
+	{
+		lua_sethook_dll(api, L, NULL, 0, 0);
+	}
+	else
+	{
+		int mask;
 
-  if(mode == HookMode_None)
-  {
-      lua_sethook_dll(api, L, NULL, 0, 0);
-  }
-  else
-  {
-      int mask;
+		switch (mode)
+		{
+		case HookMode_CallsOnly:
+			mask = LUA_MASKCALL;
+			break;
+		case HookMode_CallsAndReturns:
+			mask = LUA_MASKCALL|LUA_MASKRET;
+			break;
+		case HookMode_Full:
+			mask = LUA_MASKCALL|LUA_MASKRET|LUA_MASKLINE;
+			break;
+		}
 
-      switch (mode)
-      {
-      case HookMode_CallsOnly:
-        mask = LUA_MASKCALL;
-        break;
-      case HookMode_CallsAndReturns:
-        mask = LUA_MASKCALL|LUA_MASKRET;
-        break;
-      case HookMode_Full:
-        mask = LUA_MASKCALL|LUA_MASKRET|LUA_MASKLINE;
-        break;
-      }
-
-      lua_sethook_dll(api, L, g_interfaces[api].HookHandler, mask, 0);
-  }
-
-  
+		lua_sethook_dll(api, L, g_interfaces[api].HookHandler, mask, 0);
+	}  
 }
 
 int lua_gethookmask(unsigned long api, lua_State *L)
@@ -647,25 +629,24 @@ int lua_gethookmask(unsigned long api, lua_State *L)
 
 HookMode GetHookMode(unsigned long api, lua_State* L)
 {
+	int mask = lua_gethookmask(api, L);
 
-  int mask = lua_gethookmask(api, L);
-
-  if(mask == 0)
-  {
-    return HookMode_None;
-  }
-  else if(mask == (LUA_MASKCALL))
-  {
-    return HookMode_CallsOnly;
-  }
-  else if(mask == (LUA_MASKCALL|LUA_MASKRET))
-  {
-    return HookMode_CallsAndReturns;
-  }
-  else
-  {
-    return HookMode_Full;
-  }  
+	if(mask == 0)
+	{
+		return HookMode_None;
+	}
+	else if(mask == (LUA_MASKCALL))
+	{
+		return HookMode_CallsOnly;
+	}
+	else if(mask == (LUA_MASKCALL|LUA_MASKRET))
+	{
+		return HookMode_CallsAndReturns;
+	}
+	else
+	{
+		return HookMode_Full;
+	}  
 }
 
 
@@ -908,7 +889,6 @@ bool lua_pushthread_dll(unsigned long api, lua_State *L)
         return success;
 
     }
-
 }
 
 void* lua_newuserdata_dll(unsigned long api, lua_State *L, size_t size)
@@ -943,6 +923,7 @@ bool GetAreInterceptsEnabled()
     return value <= 0;
 }
 
+// decoda_output(str)会输出到decoda的output窗口
 void RegisterDebugLibrary(unsigned long api, lua_State* L)
 {
     lua_register_dll(api, L, "decoda_output", g_interfaces[api].DecodaOutput);
@@ -962,7 +943,7 @@ int GetRegistryIndex(unsigned long api)
 int lua_absindex_dll(unsigned long api, lua_State* L, int i)
 {
     if (g_interfaces[api].lua_absindex_dll_cdecl != NULL)
-{
+	{
         return g_interfaces[api].lua_absindex_dll_cdecl(L, i);
     }
     else if (g_interfaces[api].lua_absindex_dll_stdcall != NULL)
@@ -989,8 +970,8 @@ int lua_upvalueindex_dll(unsigned long api, int i)
     }
     else 
     {
-    return GetGlobalsIndex(api) - i;
-}
+		return GetGlobalsIndex(api) - i;
+	}
 }
 
 void lua_setglobal_dll(unsigned long api, lua_State* L, const char* s)
@@ -1005,8 +986,8 @@ void lua_setglobal_dll(unsigned long api, lua_State* L, const char* s)
     }
     else
     {
-    lua_setfield_dll(api, L, GetGlobalsIndex(api), s);
-}
+		lua_setfield_dll(api, L, GetGlobalsIndex(api), s);
+	}
 }
 
 void lua_getglobal_dll(unsigned long api, lua_State* L, const char* s)
@@ -1021,8 +1002,8 @@ void lua_getglobal_dll(unsigned long api, lua_State* L, const char* s)
     }
     else
     {
-    lua_getfield_dll(api, L, GetGlobalsIndex(api), s);
-}
+		lua_getfield_dll(api, L, GetGlobalsIndex(api), s);
+	}
 }
 
 void lua_rawgetglobal_dll(unsigned long api, lua_State* L, const char* s)
@@ -1067,7 +1048,6 @@ lua_State* lua_newstate_dll(unsigned long api, lua_Alloc f, void* ud)
 
     assert(0);
     return NULL;
-
 }
 
 void lua_close_dll(unsigned long api, lua_State* L)
@@ -1264,7 +1244,6 @@ int lua_checkstack_dll(unsigned long api, lua_State* L, int extra)
 
 void lua_getfield_dll(unsigned long api, lua_State* L, int index, const char* k)
 {
-
     // Since Lua 4.0 doesn't include lua_getfield, we just emulate its
     // behavior for simplicity.
 
@@ -1272,7 +1251,6 @@ void lua_getfield_dll(unsigned long api, lua_State* L, int index, const char* k)
 
     lua_pushstring_dll(api, L, k);
     lua_gettable_dll(api, L, index);
-
 }
 
 void lua_setfield_dll(unsigned long api, lua_State* L, int index, const char* k)
@@ -1517,7 +1495,6 @@ const char* lua_tolstring_dll(unsigned long api, lua_State* L, int index, size_t
         }
 
         return string;
-
     }
 }
 
@@ -1632,7 +1609,6 @@ int lua_gettop_dll(unsigned long api, lua_State* L)
 
 int lua_loadbuffer_dll(unsigned long api, lua_State* L, const char* buffer, size_t size, const char* chunkname, const char* mode)
 {
-
     Memory memory;
 
     memory.buffer   = buffer;
@@ -1704,7 +1680,6 @@ int lua_pcall_dll(unsigned long api, lua_State* L, int nargs, int nresults, int 
 
 void lua_newtable_dll(unsigned long api, lua_State* L)
 {
-
     if (g_interfaces[api].lua_newtable_dll_cdecl   != NULL ||
         g_interfaces[api].lua_newtable_dll_stdcall != NULL)
     {
@@ -2010,7 +1985,6 @@ int lua_setfenv_dll(unsigned long api, lua_State *L, int index)
 
 HMODULE WINAPI LoadLibraryExW_intercept(LPCWSTR fileName, HANDLE hFile, DWORD dwFlags)
 {
-
     // We have to call the loader lock (if it is available) so that we don't get deadlocks
     // in the case where Dll initialization acquires the loader lock and calls LoadLibrary
     // while another thread is inside PostLoadLibrary.
@@ -2037,12 +2011,10 @@ HMODULE WINAPI LoadLibraryExW_intercept(LPCWSTR fileName, HANDLE hFile, DWORD dw
     }
 
     return hModule;
-
 }
 
 void FinishLoadingLua(unsigned long api, bool stdcall)
 {
-
     #define SET_STDCALL(function)                                                                                                               \
         if ( g_interfaces[api].function##_dll_cdecl != NULL) {                                                                                  \
              g_interfaces[api].function##_dll_stdcall = reinterpret_cast<function##_stdcall_t>(g_interfaces[api].function##_dll_cdecl);         \
@@ -2133,22 +2105,18 @@ void FinishLoadingLua(unsigned long api, bool stdcall)
     g_interfaces[api].finishedLoading = true;
 
     DebugBackend::Get().CreateApi(api);
-
 }
 
 #pragma auto_inline(off)
 void lua_call_worker(unsigned long api, lua_State* L, int nargs, int nresults, bool& stdcall)
 {
-
     if (!g_interfaces[api].finishedLoading)
-    {
-        
+    {        
         int result;
         stdcall = GetIsStdCallConvention( g_interfaces[api].lua_call_dll_cdecl, (void*)L, (void*)nargs, (void*)nresults, (void**)&result);
 
         FinishLoadingLua(api, stdcall);
-        DebugBackend::Get().AttachState(api, L);
-    
+        DebugBackend::Get().AttachState(api, L);    
     }
     else
     {
@@ -2776,7 +2744,6 @@ __declspec(naked) void lua_close_intercept(unsigned long api, lua_State* L)
 #pragma auto_inline(off)
 int luaL_newmetatable_worker(unsigned long api, lua_State *L, const char* tname, bool& stdcall)
 {
-
     int result;
 
     if (!g_interfaces[api].finishedLoading)
@@ -2802,7 +2769,6 @@ int luaL_newmetatable_worker(unsigned long api, lua_State *L, const char* tname,
     }
 
     return result;
-
 }
 #pragma auto_inline()
 
@@ -3026,7 +2992,6 @@ int luaL_loadfilex_worker(unsigned long api, lua_State *L, const char *fileName,
 // calling convention at run-time and removes and extra argument from the stack.
 __declspec(naked) int luaL_loadfile_intercept(unsigned long api, lua_State *L, const char *fileName)
 {
-
     int     result;
     bool    stdcall;
 
@@ -3043,9 +3008,9 @@ __declspec(naked) int luaL_loadfile_intercept(unsigned long api, lua_State *L, c
 
 // This function cannot be called like a normal function. It changes its
 // calling convention at run-time and removes and extra argument from the stack.
+// HOOK_FUNCTION(luaL_loadfilex)
 __declspec(naked) int luaL_loadfilex_intercept(unsigned long api, lua_State *L, const char *fileName, const char* mode)
 {
-
     int     result;
     bool    stdcall;
 
@@ -3057,13 +3022,11 @@ __declspec(naked) int luaL_loadfilex_intercept(unsigned long api, lua_State *L, 
     result = luaL_loadfilex_worker(api, L, fileName, mode, stdcall);
 
     INTERCEPT_EPILOG(12)
-
 }
 
 #pragma auto_inline(off)
 lua_State* luaL_newstate_worker(unsigned long api, bool& stdcall)
 {
-
     lua_State* result = NULL;
 
     if (g_interfaces[api].luaL_newstate_dll_cdecl != NULL)
@@ -3091,7 +3054,6 @@ lua_State* luaL_newstate_worker(unsigned long api, bool& stdcall)
     }
 
     return result;
-
 }
 #pragma auto_inline()
 
@@ -3099,7 +3061,6 @@ lua_State* luaL_newstate_worker(unsigned long api, bool& stdcall)
 // calling convention at run-time and removes and extra argument from the stack.
 __declspec(naked) lua_State* luaL_newstate_intercept(unsigned long api)
 {
-
     lua_State*      result;
     bool            stdcall;
 
@@ -3111,19 +3072,16 @@ __declspec(naked) lua_State* luaL_newstate_intercept(unsigned long api)
     result = luaL_newstate_worker(api, stdcall);
 
     INTERCEPT_EPILOG(0)
-
 }
 
 std::string GetEnvironmentVariable(const std::string& name)
 {
-
     DWORD size = ::GetEnvironmentVariable(name.c_str(), NULL, 0);
 
     std::string result;
 
     if (size > 0)
-    {
-    
+    {    
         char* buffer = new char[size];
         buffer[0] = 0;
 
@@ -3131,16 +3089,13 @@ std::string GetEnvironmentVariable(const std::string& name)
 
         result = buffer;
         delete [] buffer;
-
     }
 
     return result;
-
 }
 
 std::string GetApplicationDirectory()
 {
-
     char fileName[_MAX_PATH];
     GetModuleFileNameEx(GetCurrentProcess(), NULL, fileName, _MAX_PATH);
 
@@ -3152,12 +3107,10 @@ std::string GetApplicationDirectory()
     }
 
     return fileName;
-
 }
 
 bool LoadLuaFunctions(const stdext::hash_map<std::string, DWORD64>& symbols, HANDLE hProcess)
 {
-
     #define GET_FUNCTION_OPTIONAL(function)                                                                                     \
         {                                                                                                                       \
             stdext::hash_map<std::string, DWORD64>::const_iterator iterator = symbols.find(#function);                          \
@@ -3177,7 +3130,7 @@ bool LoadLuaFunctions(const stdext::hash_map<std::string, DWORD64>& symbols, HAN
             }                                                                                                                   \
             return false;                                                                                                       \
         }
-
+	// Hook Lua api
     #define HOOK_FUNCTION(function)                                                                                             \
         if (luaInterface.function##_dll_cdecl != NULL)                                                                          \
         {                                                                                                                       \
@@ -3407,7 +3360,9 @@ bool LoadLuaFunctions(const stdext::hash_map<std::string, DWORD64>& symbols, HAN
     luaInterface.HookHandler   = (lua_Hook)InstanceFunction(HookHandler, api);
 
     g_interfaces.push_back( luaInterface );
-
+	char buf[256] = {0};
+	sprintf(buf, "g_interfaces size=%u", g_interfaces.size());
+	DebugBackend::Get().Message(buf);
     if (!g_loadedLuaFunctions)
     {
         DebugBackend::Get().Message("Debugger attached to process");
@@ -3415,12 +3370,11 @@ bool LoadLuaFunctions(const stdext::hash_map<std::string, DWORD64>& symbols, HAN
     }
 
     return true;
-
 }
 
 static PIMAGE_NT_HEADERS PEHeaderFromHModule(HMODULE hModule)
 {
-    PIMAGE_NT_HEADERS pNTHeader = 0;
+    PIMAGE_NT_HEADERS pNTHeader = nullptr;
     
     __try
     {
@@ -3431,7 +3385,7 @@ static PIMAGE_NT_HEADERS PEHeaderFromHModule(HMODULE hModule)
                     + PIMAGE_DOS_HEADER(hModule)->e_lfanew);
         
         if ( pNTHeader->Signature != IMAGE_NT_SIGNATURE )
-            pNTHeader = 0;
+            pNTHeader = nullptr;
     }
     __except( EXCEPTION_EXECUTE_HANDLER )
     {       
@@ -3482,7 +3436,6 @@ bool GetFileExists(const char* fileName)
 
 void ReplaceExtension(char fileName[_MAX_PATH], const char* extension)
 {
-
     char* start = strrchr(fileName, '.');
 
     if (start == NULL)
@@ -3493,12 +3446,10 @@ void ReplaceExtension(char fileName[_MAX_PATH], const char* extension)
     {
         strcpy(start + 1, extension);
     }
-
 }
 
 void GetFileTitle(const char* fileName, char fileTitle[_MAX_PATH])
 {
-
     const char* slash1 = strrchr(fileName, '\\');
     const char* slash2 = strrchr(fileName, '/');
 
@@ -3513,12 +3464,10 @@ void GetFileTitle(const char* fileName, char fileTitle[_MAX_PATH])
     {
         strcpy(fileTitle, pathEnd + 1);
     }
-
 }
 
 void GetFilePath(const char* fileName, char path[_MAX_PATH])
 {
-
     const char* slash1 = strrchr(fileName, '\\');
     const char* slash2 = strrchr(fileName, '/');
 
@@ -3535,12 +3484,10 @@ void GetFilePath(const char* fileName, char path[_MAX_PATH])
         memcpy(path, fileName, length);
         path[length] = 0;
     }
-
 }
 
 bool LocateSymbolFile(const IMAGEHLP_MODULE64& moduleInfo, char fileName[_MAX_PATH])
 {
-
     // The search order for symbol files is described here:
     // http://msdn2.microsoft.com/en-us/library/ms680689.aspx
 
@@ -3572,12 +3519,10 @@ bool LocateSymbolFile(const IMAGEHLP_MODULE64& moduleInfo, char fileName[_MAX_PA
     }
 
     return false;
-
 }
 
 BOOL CALLBACK GatherSymbolsCallback(PSYMBOL_INFO pSymInfo, ULONG SymbolSize, PVOID UserContext)
-{
-    
+{    
     stdext::hash_map<std::string, DWORD64>* symbols = reinterpret_cast<stdext::hash_map<std::string, DWORD64>*>(UserContext);
 
     if (pSymInfo != NULL && pSymInfo->Name != NULL)
@@ -3586,7 +3531,6 @@ BOOL CALLBACK GatherSymbolsCallback(PSYMBOL_INFO pSymInfo, ULONG SymbolSize, PVO
     }
     
     return TRUE;
-
 }
 
 BOOL CALLBACK FindSymbolsCallback(PSYMBOL_INFO pSymInfo, ULONG SymbolSize, PVOID UserContext)
@@ -3596,14 +3540,13 @@ BOOL CALLBACK FindSymbolsCallback(PSYMBOL_INFO pSymInfo, ULONG SymbolSize, PVOID
     return FALSE;
 }
 
+/// 在内存中搜索字符串
 bool ScanForSignature(DWORD64 start, DWORD64 length, const char* signature)
 {
-
     unsigned int signatureLength = strlen(signature);
 
     for (DWORD64 i = start; i < start + length - signatureLength; ++i)
     {
-
         void* p = reinterpret_cast<void*>(i);
 
         // Check that we have read access to the data. For some reason under Windows
@@ -3618,16 +3561,13 @@ bool ScanForSignature(DWORD64 start, DWORD64 length, const char* signature)
         {
             return true;
         }
-
     }
 
     return false;
-
 }
 
 void LoadSymbolsRecursively(std::set<std::string>& loadedModules, stdext::hash_map<std::string, DWORD64>& symbols, HANDLE hProcess, HMODULE hModule)
 {
-
     assert(hModule != NULL);
 
     char moduleName[_MAX_PATH];
@@ -3787,19 +3727,16 @@ void LoadSymbolsRecursively(std::set<std::string>& loadedModules, stdext::hash_m
 
 BOOL CALLBACK SymbolCallbackFunction(HANDLE hProcess, ULONG code, ULONG64 data, ULONG64 UserContext)
 {
-
     if (code == CBA_DEBUG_INFO)
     {
         DebugBackend::Get().Message(reinterpret_cast<char*>(data));
     }
 
     return TRUE;
-
 }
 
 void PostLoadLibrary(HMODULE hModule)
 {
-
     extern HINSTANCE g_hInstance;
 
     if (hModule == g_hInstance)
@@ -3817,7 +3754,6 @@ void PostLoadLibrary(HMODULE hModule)
 
     if (g_loadedModules.find(moduleName) == g_loadedModules.end())
     {
-
         // Record that we've loaded this module so that we don't
         // try to load it again.
         g_loadedModules.insert(moduleName);
@@ -3841,15 +3777,12 @@ void PostLoadLibrary(HMODULE hModule)
         LoadLuaFunctions(symbols, hProcess);
 
         //SymCleanup_dll(hProcess);
-        //hProcess = NULL;
-    
+        //hProcess = NULL;    
     }
-
 }
 
 void HookLoadLibrary()
 {
-
     HMODULE hModuleKernel = GetModuleHandle("kernel32.dll");
 
     if (hModuleKernel != NULL)
@@ -3868,12 +3801,10 @@ void HookLoadLibrary()
         LdrLockLoaderLock_dll   = (LdrLockLoaderLock_t)   GetProcAddress(hModuleNt, "LdrLockLoaderLock");
         LdrUnlockLoaderLock_dll = (LdrUnlockLoaderLock_t) GetProcAddress(hModuleNt, "LdrUnlockLoaderLock");
     }
-
 }
 
 bool InstallLuaHooker(HINSTANCE hInstance, const char* symbolsDirectory)
 {
-
     // Load the dbghelp functions. We have to do this dynamically since the
     // older version of dbghelp that ships with Windows doesn't successfully
     // load the symbols from PDBs. We can't simply include our new DLL since
@@ -3905,12 +3836,11 @@ bool InstallLuaHooker(HINSTANCE hInstance, const char* symbolsDirectory)
     }
 
     // Process all of the loaded modules.
-
+	// 获取本进程的所有已加载的模块
     HANDLE hSnapshot = CreateToolhelp32Snapshot(TH32CS_SNAPMODULE, 0);
 
     if (hSnapshot == NULL)
     {
-
         // If for some reason we couldn't take a snapshot, just load the
         // main module. This shouldn't ever happen, but we do it just in
         // case.
@@ -3924,7 +3854,6 @@ bool InstallLuaHooker(HINSTANCE hInstance, const char* symbolsDirectory)
         }
 
         return true;
-
     }
 
     MODULEENTRY32 module;
@@ -3948,7 +3877,6 @@ bool InstallLuaHooker(HINSTANCE hInstance, const char* symbolsDirectory)
     }
 
     return true;
-
 }
 
 bool GetIsLuaLoaded()
@@ -3977,7 +3905,6 @@ int CFunctionHandlerWorker(CFunctionArgs* args, lua_State* L, bool& stdcall)
 
 __declspec(naked) int CFunctionHandler(CFunctionArgs* args, lua_State* L)
 {
-
     int result;
     bool stdcall;
         
@@ -3987,18 +3914,15 @@ __declspec(naked) int CFunctionHandler(CFunctionArgs* args, lua_State* L)
     result = CFunctionHandlerWorker(args, L, stdcall);
 
     INTERCEPT_EPILOG(4)
-
 }
 
 lua_CFunction CreateCFunction(unsigned long api, lua_CFunction_dll function)
-{
-    
+{    
     // This is never deallocated, but it doesn't really matter since we never
     // destroy these functions.
     CFunctionArgs* args = new CFunctionArgs;
     args->api       = api;
     args->function  = function;
 
-    return (lua_CFunction)InstanceFunction(CFunctionHandler, reinterpret_cast<unsigned long>(args));
-    
+    return (lua_CFunction)InstanceFunction(CFunctionHandler, reinterpret_cast<unsigned long>(args));    
 }

@@ -718,7 +718,7 @@ bool ScintillaWX::DestroySystemCaret() {
 
 //----------------------------------------------------------------------
 
-long ScintillaWX::DefWndProc(unsigned int /*iMessage*/, unsigned long /*wParam*/, long /*lParam*/) {
+sptr_t ScintillaWX::DefWndProc(unsigned int /*iMessage*/, uptr_t /*wParam*/, sptr_t /*lParam*/) {
     return 0;
 }
 

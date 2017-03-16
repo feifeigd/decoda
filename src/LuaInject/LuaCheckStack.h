@@ -33,7 +33,6 @@ along with Decoda.  If not, see <http://www.gnu.org/licenses/>.
  */
 class LuaCheckStack
 {
-
 public:
 
     LuaCheckStack(unsigned long api, lua_State* L, int delta);

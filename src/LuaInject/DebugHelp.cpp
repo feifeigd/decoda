@@ -49,7 +49,6 @@ RtlCaptureStackBackTrace_t      RtlCaptureStackBackTrace_dll    = NULL;
 
 bool LoadRtl()
 {
-
 	HMODULE hKernel32Dll = GetModuleHandle("kernel32.dll");
 	RtlCaptureContext_dll = (RtlCaptureContext_t)GetProcAddress(hKernel32Dll,"RtlCaptureContext");
 	
@@ -60,12 +59,10 @@ bool LoadRtl()
     }
 
     return RtlCaptureContext_dll != NULL && RtlCaptureStackBackTrace_dll != NULL;
-
 }
 
 bool LoadDebugHelp(HINSTANCE hInstance)
 {
-
     HANDLE hProcess = GetCurrentProcess();
 
     LoadRtl();
@@ -103,26 +100,29 @@ bool LoadDebugHelp(HINSTANCE hInstance)
            SymGetSymFromAddr64_dll &&
            SymFunctionTableAccess64_dll &&
            SymGetModuleBase64_dll;
-
 }
 
 DWORD WINAPI GetCStackThread(LPVOID p)
 {
-
     GetCStackData* data = static_cast<GetCStackData*>(p);
     data->stackSize = 0;
 
     SuspendThread(data->hThread);
-    
-    CONTEXT context;
+#ifdef _WIN64
+	WOW64_CONTEXT context;
+#else
+	CONTEXT context;
+#endif // _WIN64
     ZeroMemory(&context, sizeof(context));
     context.ContextFlags = CONTEXT_FULL;
 
     HANDLE hProcess = GetCurrentProcess();
-    
-    if (GetThreadContext(data->hThread, &context))
-    {
-        
+#ifdef _WIN64
+	if (Wow64GetThreadContext(data->hThread, &context))
+#else
+	if (GetThreadContext(data->hThread, &context))
+#endif // _WIN64
+    {        
         STACKFRAME64 stackFrame;
         ZeroMemory(&stackFrame, sizeof(stackFrame));
 
@@ -135,7 +135,6 @@ DWORD WINAPI GetCStackThread(LPVOID p)
 
         while (data->stackSize < data->maxStackSize)
         {
-
              if (!StackWalk64_dll(
                   IMAGE_FILE_MACHINE_I386,
                   hProcess,
@@ -152,20 +151,16 @@ DWORD WINAPI GetCStackThread(LPVOID p)
 
              data->stack[data->stackSize] = stackFrame;
              ++data->stackSize;
-
         }
 
         ResumeThread(data->hThread);
-
     }
 
     return 0;
-
 }
 
 unsigned int GetCStack(STACKFRAME64 stack[], unsigned int maxStackSize)
 {
-
     HANDLE hProcess = GetCurrentProcess();
 
     GetCStackData data;
@@ -184,25 +179,28 @@ unsigned int GetCStack(STACKFRAME64 stack[], unsigned int maxStackSize)
     CloseHandle(data.hThread);
 
     return data.stackSize;
-
 }
 
 unsigned int GetCStack(HANDLE hThread, STACKFRAME64 stack[], unsigned int maxStackSize)
 {
-
     if( GetCurrentThread() != hThread )
     {
-
-        CONTEXT context;
+#ifdef _WIN64
+		WOW64_CONTEXT context;
+#else
+		CONTEXT context;
+#endif // _WIN64
         ZeroMemory(&context, sizeof(context));
         context.ContextFlags = CONTEXT_FULL;
 
         HANDLE hProcess = GetCurrentProcess();
         unsigned int stackSize = 0;
-
-        if (GetThreadContext(hThread, &context))
-        {
-            
+#ifdef _WIN64
+		if (Wow64GetThreadContext(hThread, &context))
+#else
+		if (GetThreadContext(hThread, &context))
+#endif // _WIN64
+        {            
             STACKFRAME64 stackFrame;
             ZeroMemory(&stackFrame, sizeof(stackFrame));
 
@@ -215,7 +213,6 @@ unsigned int GetCStack(HANDLE hThread, STACKFRAME64 stack[], unsigned int maxSta
 
             while (stackSize < maxStackSize)
             {
-
                  if (!StackWalk64_dll(
                       IMAGE_FILE_MACHINE_I386,
                       hProcess,
@@ -232,17 +229,13 @@ unsigned int GetCStack(HANDLE hThread, STACKFRAME64 stack[], unsigned int maxSta
 
                  stack[stackSize] = stackFrame;
                  ++stackSize;
-
             }
-
         }
 
-        return stackSize;
-    
+        return stackSize;    
     }
     else
     {
         return GetCStack(stack, maxStackSize);
     }
-
 }

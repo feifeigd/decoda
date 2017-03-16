@@ -67,7 +67,6 @@ void DebugFrontend::SetEventHandler(wxEvtHandler* eventHandler)
 
 bool DebugFrontend::Start(const char* command, const char* commandArguments, const char* currentDirectory, const char* symbolsDirectory, bool debug, bool startBroken)
 {
-
     Stop(false);
 
     STARTUPINFO startUpInfo = { 0 };
@@ -809,7 +808,6 @@ void DebugFrontend::MessageEvent(const wxString& message, MessageType type)
 
 bool DebugFrontend::ProcessInitialization(const char* symbolsDirectory)
 {
-
     unsigned int command;
     m_eventChannel.ReadUInt32(command);
 
@@ -832,7 +830,7 @@ bool DebugFrontend::ProcessInitialization(const char* symbolsDirectory)
     {
         return false;
     }
-
+	// 等待后端初始化完毕
     DWORD exitCode;
     WaitForSingleObject(thread, INFINITE);
     GetExitCodeThread(thread, &exitCode);
@@ -961,7 +959,7 @@ char* DebugFrontend::RemoteStrDup(HANDLE process, const char* string)
     size_t length = strlen(string) + 1;
     void* remoteString = VirtualAllocEx(process, NULL, length, MEM_COMMIT, PAGE_READWRITE);
 
-    DWORD numBytesWritten;
+    SIZE_T numBytesWritten;
     WriteProcessMemory(process, remoteString, string, length, &numBytesWritten);
 
     return static_cast<char*>(remoteString);
@@ -986,8 +984,7 @@ unsigned int DebugFrontend::GetNumLines(const std::string& source) const
 }
 
 bool DebugFrontend::GetExeInfo(LPCSTR fileName, ExeInfo& info) const
-{
-    
+{    
     LOADED_IMAGE loadedImage;
     if (!MapAndLoad(const_cast<PSTR>(fileName), NULL, &loadedImage, FALSE, TRUE))
     {
@@ -999,16 +996,13 @@ bool DebugFrontend::GetExeInfo(LPCSTR fileName, ExeInfo& info) const
 
     info.managed = false;
     if (loadedImage.FileHeader->Signature == IMAGE_NT_SIGNATURE)
-    {
-       
-        DWORD netHeaderAddress =
-            loadedImage.FileHeader->OptionalHeader.DataDirectory[IMAGE_DIRECTORY_ENTRY_COM_DESCRIPTOR].VirtualAddress;
+    {       
+        DWORD netHeaderAddress = loadedImage.FileHeader->OptionalHeader.DataDirectory[IMAGE_DIRECTORY_ENTRY_COM_DESCRIPTOR].VirtualAddress;
 
         if (netHeaderAddress)
         {
             info.managed = true;
-        }
-    
+        }    
     }
     
     info.entryPoint = loadedImage.FileHeader->OptionalHeader.AddressOfEntryPoint;
@@ -1017,7 +1011,6 @@ bool DebugFrontend::GetExeInfo(LPCSTR fileName, ExeInfo& info) const
     UnMapAndLoad(&loadedImage);
 
     return true;
-
 }
 
 void DebugFrontend::SetBreakpoint(HANDLE hProcess, LPVOID entryPoint, bool set, BYTE* data) const
@@ -1033,8 +1026,7 @@ void DebugFrontend::SetBreakpoint(HANDLE hProcess, LPVOID entryPoint, bool set, 
         
         if (set)
         {
-
-            DWORD numBytesRead;
+            SIZE_T numBytesRead;
             ReadProcessMemory(hProcess, entryPoint, data, 1, &numBytesRead);
 
             // Write the int 3 instruction.
@@ -1047,7 +1039,7 @@ void DebugFrontend::SetBreakpoint(HANDLE hProcess, LPVOID entryPoint, bool set, 
             buffer[0] = data[0];
         }
 
-        DWORD numBytesWritten;
+        SIZE_T numBytesWritten;
         WriteProcessMemory(hProcess, entryPoint, buffer, 1, &numBytesWritten);
 
         // Restore the original protections.
@@ -1055,9 +1047,7 @@ void DebugFrontend::SetBreakpoint(HANDLE hProcess, LPVOID entryPoint, bool set, 
 
         // Flush the cache so we know that our new code gets executed.
         FlushInstructionCache(hProcess, entryPoint, 1);
-
     }
-
 }
 
 bool DebugFrontend::StartProcessAndRunToEntry(LPCSTR exeFileName, LPSTR commandLine, LPCSTR directory, PROCESS_INFORMATION& processInfo)
@@ -1111,11 +1101,17 @@ bool DebugFrontend::StartProcessAndRunToEntry(LPCSTR exeFileName, LPSTR commandL
                 if (debugEvent.u.Exception.ExceptionRecord.ExceptionCode == EXCEPTION_SINGLE_STEP ||
                     debugEvent.u.Exception.ExceptionRecord.ExceptionCode == EXCEPTION_BREAKPOINT)
                 {
-
-                    CONTEXT context;
+#ifdef _WIN64
+					WOW64_CONTEXT context = {0};
+#else
+					CONTEXT context;	// 32
+#endif // _WIN64
                     context.ContextFlags = CONTEXT_FULL;
-
-                    GetThreadContext(processInfo.hThread, &context);
+#ifdef _WIN64
+                    Wow64GetThreadContext(processInfo.hThread, &context);
+#else
+					GetThreadContext(processInfo.hThread, &context);
+#endif // _WIN64
 
                     if (context.Eip == entryPoint + 1)
                     {
@@ -1126,7 +1122,11 @@ bool DebugFrontend::StartProcessAndRunToEntry(LPCSTR exeFileName, LPSTR commandL
 
                         // Backup the instruction pointer so that we execute the original instruction.
                         --context.Eip;
-                        SetThreadContext(processInfo.hThread, &context);
+#ifdef _WIN64
+                        Wow64SetThreadContext(processInfo.hThread, &context);
+#else
+						SetThreadContext(processInfo.hThread, &context);
+#endif // _WIN64
 
                         // Suspend the thread before we continue the debug event so that the program
                         // doesn't continue to run.

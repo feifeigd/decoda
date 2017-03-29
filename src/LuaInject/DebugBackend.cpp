@@ -276,7 +276,11 @@ bool DebugBackend::Initialize(HINSTANCE hInstance)
     // Give the front end the address of our Initialize function so that
     // it can call it once we're done loading.
     m_eventChannel.WriteUInt32(EventId_Initialize);
-    m_eventChannel.WriteUInt32(reinterpret_cast<unsigned int>(FinishInitialize));
+#ifdef _WIN64
+	m_eventChannel.WriteUInt64(reinterpret_cast<size_t>(FinishInitialize));
+#else
+	m_eventChannel.WriteUInt32(reinterpret_cast<size_t>(FinishInitialize));
+#endif // _WIN64
     m_eventChannel.Flush();
 
     return true;
@@ -1083,16 +1087,14 @@ void DebugBackend::CommandThreadProc()
                 DeleteAllBreakpoints();
                 break;
             case CommandId_ToggleBreakpoint:
-                {
-                    
+                {                    
                     unsigned int scriptIndex;
                     unsigned int line;
 
                     m_commandChannel.ReadUInt32(scriptIndex);
                     m_commandChannel.ReadUInt32(line);
                     
-                    ToggleBreakpoint(L, scriptIndex, line);
-                
+                    ToggleBreakpoint(L, scriptIndex, line);                
                 }
                 break;
             case CommandId_Break:

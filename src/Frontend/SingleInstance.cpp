@@ -54,7 +54,6 @@ SingleInstance::~SingleInstance()
 
 HWND SingleInstance::Connect(HWND hWnd, const char* name)
 {
-
     char mutexName[256];
     _snprintf(mutexName, 256, "%s_mutex", name);
 
@@ -64,12 +63,11 @@ HWND SingleInstance::Connect(HWND hWnd, const char* name)
     m_hInstance = OpenFileMapping(FILE_MAP_ALL_ACCESS, FALSE, name);
 
     if (m_hInstance == NULL)
-    {
-        
+    {        
         m_mutex = CreateMutex(NULL, TRUE, mutexName);
         
         // Create a new memory mapped file to store the instance data inside.
-        m_hInstance = CreateFileMapping((HANDLE)0xFFFFFFFF, NULL, PAGE_READWRITE, 0, sizeof(Data), name);
+        m_hInstance = CreateFileMapping(INVALID_HANDLE_VALUE, NULL, PAGE_READWRITE, 0, sizeof(Data), name);
 
         // Store the window handle for access by other instances.
         m_data = (Data*) MapViewOfFile(m_hInstance, FILE_MAP_READ | FILE_MAP_WRITE, 0, 0, sizeof(Data));

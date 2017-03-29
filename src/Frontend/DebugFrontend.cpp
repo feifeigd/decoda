@@ -136,7 +136,6 @@ bool DebugFrontend::Start(const char* command, const char* commandArguments, con
     CloseHandle(processInfo.hThread);
 
     return true;
-
 }
 
 bool DebugFrontend::Attach(unsigned int processId, const char* symbolsDirectory)
@@ -329,13 +328,10 @@ void DebugFrontend::Stop(bool kill)
 
 bool DebugFrontend::InjectDll(DWORD processId, const char* dllFileName)
 {
-
     bool success = true;
 
-    // Get the absolute path to the DLL.
-     
-    char fullFileName[_MAX_PATH];
-    
+    // Get the absolute path to the DLL.     
+    char fullFileName[_MAX_PATH];    
     if (!GetStartupDirectory(fullFileName, _MAX_PATH))
     {
         return false;
@@ -351,7 +347,7 @@ bool DebugFrontend::InjectDll(DWORD processId, const char* dllFileName)
     }
     
     HMODULE kernelModule = GetModuleHandle("Kernel32");
-    FARPROC loadLibraryProc = GetProcAddress(kernelModule, "LoadLibraryA");
+    FARPROC loadLibraryProc = GetProcAddress(kernelModule, "LoadLibrayrA");
 
     // Load the DLL.
     
@@ -378,12 +374,10 @@ bool DebugFrontend::InjectDll(DWORD processId, const char* dllFileName)
 
     if (dllHandle != NULL)
     {
-
         if (!ExecuteRemoteKernelFuntion(process, "FreeLibrary", dllHandle, exitCode))
         {
             success = false;
-        }
-    
+        }    
     }
     */
 
@@ -441,7 +435,6 @@ bool DebugFrontend::GetIsBeingDebugged(DWORD processId)
 
 bool DebugFrontend::ExecuteRemoteKernelFuntion(HANDLE process, const char* functionName, LPVOID param, DWORD& exitCode)
 {
-
     HMODULE kernelModule = GetModuleHandle("Kernel32");
     FARPROC function = GetProcAddress(kernelModule, functionName);
 
@@ -455,25 +448,18 @@ bool DebugFrontend::ExecuteRemoteKernelFuntion(HANDLE process, const char* funct
         (LPTHREAD_START_ROUTINE)function, param, 0, &threadId);
 
     if (thread != NULL)
-    {
-        
+    {        
         WaitForSingleObject(thread, INFINITE);
         GetExitCodeThread(thread, &exitCode);
         
         CloseHandle(thread);
         return true;
-
     }
-    else
-    {
-        return false;
-    }
-
+    return false;
 }
 
 bool DebugFrontend::GetStartupDirectory(char* path, int maxPathLength)
 {
-
     if (!GetModuleFileName(NULL, path, maxPathLength))
     {
 		return false;
@@ -490,7 +476,6 @@ bool DebugFrontend::GetStartupDirectory(char* path, int maxPathLength)
 
     lastSlash[1] = 0;
     return true;
-
 }
 
 void DebugFrontend::EventThreadProc()
@@ -665,7 +650,6 @@ DWORD WINAPI DebugFrontend::StaticEventThreadProc(LPVOID param)
     DebugFrontend* self = static_cast<DebugFrontend*>(param);
     self->EventThreadProc();
     return 0;
-
 }
 
 void DebugFrontend::Continue(unsigned int vm)
@@ -763,7 +747,6 @@ DebugFrontend::Script* DebugFrontend::GetScript(unsigned int scriptIndex)
 
 unsigned int DebugFrontend::GetScriptIndex(const char* name) const
 {
-
     for (unsigned int i = 0; i < m_scripts.size(); ++i)
     {
         if (m_scripts[i]->name == name)
@@ -773,7 +756,6 @@ unsigned int DebugFrontend::GetScriptIndex(const char* name) const
     }
 
     return -1;
-
 }
 
 unsigned int DebugFrontend::GetNumStackFrames() const
@@ -793,7 +775,6 @@ DebugFrontend::State DebugFrontend::GetState() const
 
 void DebugFrontend::MessageEvent(const wxString& message, MessageType type)
 {
-
     wxDebugEvent event(EventId_Message, 0);
     event.SetMessage(message);
     event.SetMessageType(type);
@@ -803,7 +784,6 @@ void DebugFrontend::MessageEvent(const wxString& message, MessageType type)
     {
         m_eventHandler->AddPendingEvent(event);
     }
-
 }
 
 bool DebugFrontend::ProcessInitialization(const char* symbolsDirectory)
@@ -815,9 +795,13 @@ bool DebugFrontend::ProcessInitialization(const char* symbolsDirectory)
     {
         return false;
     }
-
-    unsigned int function;
-    m_eventChannel.ReadUInt32(function);
+#ifdef _WIN64
+	size_t function;
+	m_eventChannel.ReadUInt64(function);
+#else
+	unsigned int function;
+	m_eventChannel.ReadUInt32(function);
+#endif // _WIN64
 
     // Call the initializtion function.
 
@@ -839,7 +823,6 @@ bool DebugFrontend::ProcessInitialization(const char* symbolsDirectory)
     thread = NULL;
 
     return exitCode != 0;
-
 }
 
 std::string DebugFrontend::MakeValidFileName(const std::string& name)
@@ -868,15 +851,12 @@ std::string DebugFrontend::MakeValidFileName(const std::string& name)
 
 HWND DebugFrontend::GetProcessWindow(DWORD processId) const
 {
-
     HWND hWnd = FindWindowEx(NULL, NULL, NULL, NULL);
 
     while (hWnd != NULL)
     {
-
         if (GetParent(hWnd) == NULL && GetWindowTextLength(hWnd) > 0 && IsWindowVisible(hWnd))
         {
-
             DWORD windowProcessId;
             GetWindowThreadProcessId(hWnd, &windowProcessId);
 
@@ -885,28 +865,23 @@ HWND DebugFrontend::GetProcessWindow(DWORD processId) const
                 // Found a match.
                 break;
             }
-
         }
         
         hWnd = GetWindow(hWnd, GW_HWNDNEXT);
-
     }
 
     return hWnd;
-
 }
 
 void DebugFrontend::GetProcesses(std::vector<Process>& processes) const
 {
-
     // Get the id of this process so that we can filter it out of the list.
     DWORD currentProcessId = GetCurrentProcessId();
 
     HANDLE snapshot = CreateToolhelp32Snapshot(TH32CS_SNAPPROCESS, 0);
 
     if (snapshot != INVALID_HANDLE_VALUE)
-    {
-        
+    {        
         PROCESSENTRY32 processEntry = { 0 };
         processEntry.dwSize = sizeof(processEntry);
 
@@ -933,17 +908,13 @@ void DebugFrontend::GetProcesses(std::vector<Process>& processes) const
                     }
 
                     processes.push_back(process);
-
                 }
             }
-            while (Process32Next(snapshot, &processEntry));
-        
+            while (Process32Next(snapshot, &processEntry));        
         }
 
         CloseHandle(snapshot);
-
     }
-
 }
 
 void DebugFrontend::IgnoreException(const std::string& message)
@@ -954,8 +925,7 @@ void DebugFrontend::IgnoreException(const std::string& message)
 }
 
 char* DebugFrontend::RemoteStrDup(HANDLE process, const char* string)
-{
-    
+{    
     size_t length = strlen(string) + 1;
     void* remoteString = VirtualAllocEx(process, NULL, length, MEM_COMMIT, PAGE_READWRITE);
 
@@ -963,12 +933,10 @@ char* DebugFrontend::RemoteStrDup(HANDLE process, const char* string)
     WriteProcessMemory(process, remoteString, string, length, &numBytesWritten);
 
     return static_cast<char*>(remoteString);
-
 }
 
 unsigned int DebugFrontend::GetNumLines(const std::string& source) const
 {
-
     unsigned int numLines = 1;
 
     for (unsigned int i = 0; i < source.length(); ++i)
@@ -980,7 +948,6 @@ unsigned int DebugFrontend::GetNumLines(const std::string& source) const
     }
 
     return numLines;
-
 }
 
 bool DebugFrontend::GetExeInfo(LPCSTR fileName, ExeInfo& info) const
@@ -995,18 +962,24 @@ bool DebugFrontend::GetExeInfo(LPCSTR fileName, ExeInfo& info) const
     // http://www.codeguru.com/cpp/w-p/system/misc/print.php/c14001
 
     info.managed = false;
-    if (loadedImage.FileHeader->Signature == IMAGE_NT_SIGNATURE)
+	PIMAGE_NT_HEADERS pNTHeaders = loadedImage.FileHeader;
+    if (pNTHeaders->Signature == IMAGE_NT_SIGNATURE)
     {       
-        DWORD netHeaderAddress = loadedImage.FileHeader->OptionalHeader.DataDirectory[IMAGE_DIRECTORY_ENTRY_COM_DESCRIPTOR].VirtualAddress;
+		PIMAGE_SECTION_HEADER pSectionHeader = PIMAGE_SECTION_HEADER(pNTHeaders+1);
+		//start parsing COM table (this is what points to
+		//the metadata and other information)
+        DWORD netHeaderAddress = pNTHeaders->OptionalHeader.DataDirectory[IMAGE_DIRECTORY_ENTRY_COM_DESCRIPTOR].VirtualAddress;
 
         if (netHeaderAddress)
         {
+			//IMAGE_COR20_HEADER* pNETHeader = (IMAGE_COR20_HEADER*)((BYTE*)p)
+				//GetActualAddressFromRVA(pSectionHeader, pNTHeaders, netHeaderAddress)
             info.managed = true;
         }    
     }
     
-    info.entryPoint = loadedImage.FileHeader->OptionalHeader.AddressOfEntryPoint;
-    info.i386       = loadedImage.FileHeader->FileHeader.Machine == IMAGE_FILE_MACHINE_I386;
+    info.entryPoint = pNTHeaders->OptionalHeader.AddressOfEntryPoint;
+    info.i386       = pNTHeaders->FileHeader.Machine == IMAGE_FILE_MACHINE_I386;
 
     UnMapAndLoad(&loadedImage);
 
@@ -1015,13 +988,11 @@ bool DebugFrontend::GetExeInfo(LPCSTR fileName, ExeInfo& info) const
 
 void DebugFrontend::SetBreakpoint(HANDLE hProcess, LPVOID entryPoint, bool set, BYTE* data) const
 {
-
     DWORD protection;
 
     // Give ourself write access to the region.
     if (VirtualProtectEx(hProcess, entryPoint, 1, PAGE_EXECUTE_READWRITE, &protection))
     {
-
         BYTE buffer[1];
         
         if (set)
@@ -1031,7 +1002,6 @@ void DebugFrontend::SetBreakpoint(HANDLE hProcess, LPVOID entryPoint, bool set, 
 
             // Write the int 3 instruction.
             buffer[0] = 0xCC;
-
         }
         else
         {
@@ -1050,9 +1020,127 @@ void DebugFrontend::SetBreakpoint(HANDLE hProcess, LPVOID entryPoint, bool set, 
     }
 }
 
+void DebugFrontend::OnException(EXCEPTION_DEBUG_INFO const& info, PROCESS_INFORMATION const& processInfo, size_t& entryPoint, bool& done, BYTE& breakPointData, DWORD& continueStatus){
+	OutputDebugString(TEXT("An exception was occured.\n"));
+	DWORD ExceptionCode = info.ExceptionRecord.ExceptionCode;
+	if (ExceptionCode == EXCEPTION_SINGLE_STEP ||
+		ExceptionCode == EXCEPTION_BREAKPOINT)
+	{
+		BOOL Wow64Process = FALSE;
+		if(!IsWow64Process(processInfo.hProcess, &Wow64Process)){
+			DWORD err = GetLastError();
+		}
+		if (Wow64Process)
+		{
+			WOW64_CONTEXT context = {0};
+			context.ContextFlags = CONTEXT_FULL;
+			Wow64GetThreadContext(processInfo.hThread, &context);
+
+			if (context.Eip == entryPoint + 1)
+			{
+				// Restore the original code bytes.
+				SetBreakpoint(processInfo.hProcess, (LPVOID)entryPoint, false, &breakPointData);	// �ָ�int 3ָ��λ��Ϊԭ����ָ��
+				done = true;
+
+				// Backup the instruction pointer so that we execute the original instruction.
+				--context.Eip;
+				Wow64SetThreadContext(processInfo.hThread, &context);
+
+				// Suspend the thread before we continue the debug event so that the program
+				// doesn't continue to run.
+				SuspendThread(processInfo.hThread);
+			}
+		}else{
+			CONTEXT context = {0};
+			context.ContextFlags = CONTEXT_FULL;
+			GetThreadContext(processInfo.hThread, &context);
+#ifdef _WIN64
+			if (context.Rip == entryPoint + 1)
+#else
+			if (context.Eip == entryPoint + 1)
+#endif // _WIN64
+			{
+				// Restore the original code bytes.
+				SetBreakpoint(processInfo.hProcess, (LPVOID)entryPoint, false, &breakPointData);	// �ָ�int 3ָ��λ��Ϊԭ����ָ��
+				done = true;
+
+				// Backup the instruction pointer so that we execute the original instruction.
+#ifdef _WIN64
+				--context.Rip;
+#else
+				--context.Eip;
+#endif // _WIN64
+				SetThreadContext(processInfo.hThread, &context);
+
+				// Suspend the thread before we continue the debug event so that the program
+				// doesn't continue to run.
+				SuspendThread(processInfo.hThread);
+			}
+		}
+
+		continueStatus = DBG_CONTINUE;
+	}
+}
+
+void DebugFrontend::OnProcessCreated(PROCESS_INFORMATION const& processInfo, CREATE_PROCESS_DEBUG_INFO const& info, size_t& entryPoint, BYTE& breakPointData )
+{
+	OutputDebugString(TEXT("Debuggee was created.\n"));
+	// Offset the entry point by the load address of the process.
+	entryPoint += reinterpret_cast<size_t>(info.lpBaseOfImage);
+
+	// Write a break point at the entry point of the application so that we
+	// will stop when we reach that point.
+	SetBreakpoint(processInfo.hProcess, reinterpret_cast<void*>(entryPoint), true, &breakPointData);	// ���̴���������ڵ�����һ�� int 3ָ��
+
+	CloseHandle(info.hFile);
+}
+
+void DebugFrontend::OnProcessExited( EXIT_PROCESS_DEBUG_INFO const& ExitProcess )
+{
+	OutputDebugString(TEXT("Debuggee was terminated.\n"));
+}
+
+void DebugFrontend::OnThreadCreated( CREATE_THREAD_DEBUG_INFO const& CreateThread )
+{
+	OutputDebugString(TEXT("A new thread was created.\n"));
+}
+
+void DebugFrontend::OnThreadExited( EXIT_THREAD_DEBUG_INFO const& ExitThread )
+{
+	OutputDebugString(TEXT("A thread was terminated.\n"));
+}
+
+void DebugFrontend::OnDllLoaded( LOAD_DLL_DEBUG_INFO const& LoadDll )
+{
+	OutputDebugString(TEXT("A dll was loaded.\n"));
+	wchar_t const* name = (wchar_t const*)LoadDll.lpImageName;
+	CloseHandle(LoadDll.hFile);
+}
+
+void DebugFrontend::OnDllUnloaded( UNLOAD_DLL_DEBUG_INFO const& UnloadDll )
+{
+	OutputDebugString(TEXT("A dll was unloaded.\n"));
+}
+
+void DebugFrontend::OnOutputDebugString(PROCESS_INFORMATION const& processInfo, OUTPUT_DEBUG_STRING_INFO const& DebugString )
+{
+	OutputDebugString(TEXT("Debuggee outputed debug string.\n"));
+	if (DebugString.fUnicode)
+	{
+		WCHAR* msg = new WCHAR[DebugString.nDebugStringLength];
+		ReadProcessMemory(processInfo.hProcess, DebugString.lpDebugStringData, msg, DebugString.nDebugStringLength, nullptr);		
+		OutputDebugStringW(msg);
+		delete[] msg;
+	}
+}
+
+void DebugFrontend::OnRipEvent( RIP_INFO const& RipInfo )
+{
+	OutputDebugString(TEXT("A RIP_EVENT occured.\n"));
+}
+
 bool DebugFrontend::StartProcessAndRunToEntry(LPCSTR exeFileName, LPSTR commandLine, LPCSTR directory, PROCESS_INFORMATION& processInfo)
 {
-
     STARTUPINFO startUpInfo = { 0 };
     startUpInfo.cb = sizeof(startUpInfo);
 
@@ -1062,12 +1150,13 @@ bool DebugFrontend::StartProcessAndRunToEntry(LPCSTR exeFileName, LPSTR commandL
         MessageEvent("Error: The entry point for the application could not be located", MessageType_Error);
         return false;
     }
-
+#ifndef _WIN64
     if (!info.i386)
     {
         MessageEvent("Error: Debugging 64-bit applications is not supported", MessageType_Error);
         return false;
     }
+#endif // _WIN64
 
     DWORD flags = DEBUG_PROCESS | DEBUG_ONLY_THIS_PROCESS;
 
@@ -1082,98 +1171,70 @@ bool DebugFrontend::StartProcessAndRunToEntry(LPCSTR exeFileName, LPSTR commandL
 
     if (!info.managed)
     {
-
-        unsigned long entryPoint = info.entryPoint;
+        size_t entryPoint = info.entryPoint;
 
         BYTE breakPointData;
         bool done = false;
         
         while (!done)
         {
-
             DEBUG_EVENT debugEvent;
             WaitForDebugEvent(&debugEvent, INFINITE);
 
             DWORD continueStatus = DBG_EXCEPTION_NOT_HANDLED;
+			switch(debugEvent.dwDebugEventCode){
+			//�����쳣ʱ���ʹ�������¼�
+			case EXCEPTION_DEBUG_EVENT:
+				OnException(debugEvent.u.Exception, processInfo, entryPoint, done, breakPointData, continueStatus);				
+				break;
+			// ��������֮���ʹ�������¼������ǵ������յ��ĵ�һ�������¼�
+			case CREATE_PROCESS_DEBUG_EVENT:
+				OnProcessCreated(processInfo, debugEvent.u.CreateProcessInfo, entryPoint, breakPointData);
+				break;
+			case EXIT_PROCESS_DEBUG_EVENT:
+				OnProcessExited(debugEvent.u.ExitProcess);
+				done = true;
+				break;
+			//����һ���߳�֮���ʹ�������¼�
+			case CREATE_THREAD_DEBUG_EVENT:
+				OnThreadCreated(debugEvent.u.CreateThread);
+				break;
 
-            if (debugEvent.dwDebugEventCode == EXCEPTION_DEBUG_EVENT)
-            {
-                if (debugEvent.u.Exception.ExceptionRecord.ExceptionCode == EXCEPTION_SINGLE_STEP ||
-                    debugEvent.u.Exception.ExceptionRecord.ExceptionCode == EXCEPTION_BREAKPOINT)
-                {
-#ifdef _WIN64
-					WOW64_CONTEXT context = {0};
-#else
-					CONTEXT context;	// 32
-#endif // _WIN64
-                    context.ContextFlags = CONTEXT_FULL;
-#ifdef _WIN64
-                    Wow64GetThreadContext(processInfo.hThread, &context);
-#else
-					GetThreadContext(processInfo.hThread, &context);
-#endif // _WIN64
+			//һ���߳̽������ʹ�������¼�
+			case EXIT_THREAD_DEBUG_EVENT:
+				OnThreadExited(debugEvent.u.ExitThread);
+				break;
+			//ж��һ��DLLģ��֮���ʹ�������¼�
+			case LOAD_DLL_DEBUG_EVENT:
+				OnDllLoaded(debugEvent.u.LoadDll);
+				break;
+			//ж��һ��DLLģ��֮���ʹ�������¼�
+			case UNLOAD_DLL_DEBUG_EVENT:
+				OnDllUnloaded(debugEvent.u.UnloadDll);
+				break;
+			//����ϵͳ���Դ���ʱ���ʹ�������¼�
+			case OUTPUT_DEBUG_STRING_EVENT:
+				OnOutputDebugString(processInfo, debugEvent.u.DebugString);
+				break;
+			//����ϵͳ���Դ���ʱ���ʹ�������¼�
+			case RIP_EVENT:
+				OnRipEvent(debugEvent.u.RipInfo);
+				break;
+			default:
+				OutputDebugString(TEXT("Unknown debug event.\n"));
+				break;
+			}
 
-                    if (context.Eip == entryPoint + 1)
-                    {
-
-                        // Restore the original code bytes.
-                        SetBreakpoint(processInfo.hProcess, (LPVOID)entryPoint, false, &breakPointData);
-                        done = true;
-
-                        // Backup the instruction pointer so that we execute the original instruction.
-                        --context.Eip;
-#ifdef _WIN64
-                        Wow64SetThreadContext(processInfo.hThread, &context);
-#else
-						SetThreadContext(processInfo.hThread, &context);
-#endif // _WIN64
-
-                        // Suspend the thread before we continue the debug event so that the program
-                        // doesn't continue to run.
-                        SuspendThread(processInfo.hThread);
-
-                    }
-
-                    continueStatus = DBG_CONTINUE;
-
-                }
-            }
-            else if (debugEvent.dwDebugEventCode == EXIT_PROCESS_DEBUG_EVENT)
-            {
-                done = true;
-            }
-            else if (debugEvent.dwDebugEventCode == CREATE_PROCESS_DEBUG_EVENT)
-            {
-            
-                // Offset the entry point by the load address of the process.
-                entryPoint += reinterpret_cast<size_t>(debugEvent.u.CreateProcessInfo.lpBaseOfImage);
-
-                // Write a break point at the entry point of the application so that we
-                // will stop when we reach that point.
-                SetBreakpoint(processInfo.hProcess, reinterpret_cast<void*>(entryPoint), true, &breakPointData);
-
-                CloseHandle(debugEvent.u.CreateProcessInfo.hFile);
-
-            }
-            else if (debugEvent.dwDebugEventCode == LOAD_DLL_DEBUG_EVENT)
-            {
-                CloseHandle(debugEvent.u.LoadDll.hFile);
-            }
-
-            ContinueDebugEvent(debugEvent.dwProcessId, debugEvent.dwThreadId, continueStatus);
-        
+            ContinueDebugEvent(debugEvent.dwProcessId, debugEvent.dwThreadId, continueStatus);        
         }
-
     }
 
     DebugActiveProcessStop(processInfo.dwProcessId);
     return true;
-
 }
 
 void DebugFrontend::OutputError(DWORD error)
 {
-
     char buffer[1024];
     if (FormatMessage(FORMAT_MESSAGE_FROM_SYSTEM, NULL, error, 0, buffer, 1024,  NULL))
     {
@@ -1181,5 +1242,4 @@ void DebugFrontend::OutputError(DWORD error)
         message += buffer;
         MessageEvent(message, MessageType_Error);
     }
-
 }

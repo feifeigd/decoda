@@ -44,7 +44,6 @@ void ReplaceAll(std::string& string, const std::string& find, const std::string&
 
 std::string TrimSpaces(const std::string& string)
 {
-
     const char* whitespace = " \t\n"; 
 
     size_t start = string.find_first_not_of(whitespace);
@@ -56,7 +55,6 @@ std::string TrimSpaces(const std::string& string)
     }
 
     return string.substr(start, end - start + 1);
-
 }
 
 std::string GetDirectory(const std::string& fileName)

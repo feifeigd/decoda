@@ -39,7 +39,6 @@ void ClearVector(std::vector<T*>& v)
 template <typename T>
 void CopyVector(std::vector<T*>& dst, const std::vector<T*>& src)
 {
-
     ClearVector(dst);
     dst.resize(src.size());
 
@@ -47,7 +46,6 @@ void CopyVector(std::vector<T*>& dst, const std::vector<T*>& src)
     {
         dst[i] = new T(*src[i]);
     }
-
 }
 
 /**

@@ -1,4 +1,4 @@
-/*
+﻿/*
 
 Decoda
 Copyright (C) 2007-2013 Unknown Worlds Entertainment, Inc. 
@@ -889,15 +889,13 @@ void DebugFrontend::GetProcesses(std::vector<Process>& processes) const
         {
             do
             {
-                if (processEntry.th32ProcessID != currentProcessId && processEntry.th32ProcessID != 0)
+                if (processEntry.th32ProcessID != currentProcessId && processEntry.th32ProcessID != 0)	// 
                 {
-
                     Process process;
 
                     process.id   = processEntry.th32ProcessID;
                     process.name = processEntry.szExeFile;
-                    
-                    
+                                        
                     HWND hWnd = GetProcessWindow(processEntry.th32ProcessID);
 
                     if (hWnd != NULL)
@@ -1039,7 +1037,7 @@ void DebugFrontend::OnException(EXCEPTION_DEBUG_INFO const& info, PROCESS_INFORM
 			if (context.Eip == entryPoint + 1)
 			{
 				// Restore the original code bytes.
-				SetBreakpoint(processInfo.hProcess, (LPVOID)entryPoint, false, &breakPointData);	// �ָ�int 3ָ��λ��Ϊԭ����ָ��
+				SetBreakpoint(processInfo.hProcess, (LPVOID)entryPoint, false, &breakPointData);	// 
 				done = true;
 
 				// Backup the instruction pointer so that we execute the original instruction.
@@ -1061,7 +1059,7 @@ void DebugFrontend::OnException(EXCEPTION_DEBUG_INFO const& info, PROCESS_INFORM
 #endif // _WIN64
 			{
 				// Restore the original code bytes.
-				SetBreakpoint(processInfo.hProcess, (LPVOID)entryPoint, false, &breakPointData);	// �ָ�int 3ָ��λ��Ϊԭ����ָ��
+				SetBreakpoint(processInfo.hProcess, (LPVOID)entryPoint, false, &breakPointData);	// 
 				done = true;
 
 				// Backup the instruction pointer so that we execute the original instruction.
@@ -1090,7 +1088,7 @@ void DebugFrontend::OnProcessCreated(PROCESS_INFORMATION const& processInfo, CRE
 
 	// Write a break point at the entry point of the application so that we
 	// will stop when we reach that point.
-	SetBreakpoint(processInfo.hProcess, reinterpret_cast<void*>(entryPoint), true, &breakPointData);	// ���̴���������ڵ�����һ�� int 3ָ��
+	SetBreakpoint(processInfo.hProcess, reinterpret_cast<void*>(entryPoint), true, &breakPointData);	// 
 
 	CloseHandle(info.hFile);
 }
@@ -1183,11 +1181,11 @@ bool DebugFrontend::StartProcessAndRunToEntry(LPCSTR exeFileName, LPSTR commandL
 
             DWORD continueStatus = DBG_EXCEPTION_NOT_HANDLED;
 			switch(debugEvent.dwDebugEventCode){
-			//�����쳣ʱ���ʹ�������¼�
+			// 
 			case EXCEPTION_DEBUG_EVENT:
 				OnException(debugEvent.u.Exception, processInfo, entryPoint, done, breakPointData, continueStatus);				
 				break;
-			// ��������֮���ʹ�������¼������ǵ������յ��ĵ�һ�������¼�
+			// 
 			case CREATE_PROCESS_DEBUG_EVENT:
 				OnProcessCreated(processInfo, debugEvent.u.CreateProcessInfo, entryPoint, breakPointData);
 				break;
@@ -1195,28 +1193,28 @@ bool DebugFrontend::StartProcessAndRunToEntry(LPCSTR exeFileName, LPSTR commandL
 				OnProcessExited(debugEvent.u.ExitProcess);
 				done = true;
 				break;
-			//����һ���߳�֮���ʹ�������¼�
+			// 
 			case CREATE_THREAD_DEBUG_EVENT:
 				OnThreadCreated(debugEvent.u.CreateThread);
 				break;
 
-			//һ���߳̽������ʹ�������¼�
+			// 
 			case EXIT_THREAD_DEBUG_EVENT:
 				OnThreadExited(debugEvent.u.ExitThread);
 				break;
-			//ж��һ��DLLģ��֮���ʹ�������¼�
+			// 
 			case LOAD_DLL_DEBUG_EVENT:
 				OnDllLoaded(debugEvent.u.LoadDll);
 				break;
-			//ж��һ��DLLģ��֮���ʹ�������¼�
+			// 
 			case UNLOAD_DLL_DEBUG_EVENT:
 				OnDllUnloaded(debugEvent.u.UnloadDll);
 				break;
-			//����ϵͳ���Դ���ʱ���ʹ�������¼�
+			// 
 			case OUTPUT_DEBUG_STRING_EVENT:
 				OnOutputDebugString(processInfo, debugEvent.u.DebugString);
 				break;
-			//����ϵͳ���Դ���ʱ���ʹ�������¼�
+			// 
 			case RIP_EVENT:
 				OnRipEvent(debugEvent.u.RipInfo);
 				break;

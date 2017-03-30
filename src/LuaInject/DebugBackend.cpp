@@ -1,4 +1,4 @@
-/*
+﻿/*
 
 Decoda
 Copyright (C) 2007-2013 Unknown Worlds Entertainment, Inc. 
@@ -1102,8 +1102,7 @@ void DebugBackend::CommandThreadProc()
                 break;
             case CommandId_Evaluate:
                 {
-
-                    std::string expression;
+                    std::string expression;	// 要计算的表达式
                     m_commandChannel.ReadString(expression);
                     
                     unsigned int stackLevel;
@@ -1120,9 +1119,8 @@ void DebugBackend::CommandThreadProc()
                     }
                     
                     m_commandChannel.WriteUInt32(success);
-                    m_commandChannel.WriteString(result);
+                    m_commandChannel.WriteString(result);	// 以字符串格式返回表达式计算结果
                     m_commandChannel.Flush();
-
                 }
                 break;
             case CommandId_LoadDone:
@@ -1148,7 +1146,7 @@ void DebugBackend::CommandThreadProc()
     m_stateToVm.clear();
 
     m_eventChannel.Destroy();
-    m_commandChannel.Destroy();    
+    m_commandChannel.Destroy();
 }
 
 DWORD WINAPI DebugBackend::StaticCommandThreadProc(LPVOID param)
@@ -1160,19 +1158,18 @@ DWORD WINAPI DebugBackend::StaticCommandThreadProc(LPVOID param)
 
 void DebugBackend::ActiveLuaHookInAllVms()
 {
-    StateToVmMap::iterator end = m_stateToVm.end();
+	StateToVmMap::iterator end = m_stateToVm.end();
 
-    for (StateToVmMap::iterator it = m_stateToVm.begin(); it != end; it++)
-    {
-      VirtualMachine* vm = it->second;
-      //May have issues with L not being the currently running thread
-      SetHookMode(vm->api, vm->L, HookMode_Full);
-    }
+	for (StateToVmMap::iterator it = m_stateToVm.begin(); it != end; it++)
+	{
+		VirtualMachine* vm = it->second;
+		//May have issues with L not being the currently running thread
+		SetHookMode(vm->api, vm->L, HookMode_Full);
+	}
 }
 
 void DebugBackend::StepInto()
-{
-    
+{    
     CriticalSectionLock lock(m_criticalSection);
     
     for (unsigned int i = 0; i < m_vms.size(); ++i)
@@ -1188,7 +1185,6 @@ void DebugBackend::StepInto()
 
 void DebugBackend::StepOver()
 {
-
     CriticalSectionLock lock(m_criticalSection);
     
     for (unsigned int i = 0; i < m_vms.size(); ++i)
@@ -1204,8 +1200,7 @@ void DebugBackend::StepOver()
 
 
 void DebugBackend::Continue()
-{
-    
+{    
     CriticalSectionLock lock(m_criticalSection);
     
     for (unsigned int i = 0; i < m_vms.size(); ++i)
@@ -1215,7 +1210,6 @@ void DebugBackend::Continue()
 
     m_mode = Mode_Continue;
     SetEvent(m_stepEvent);
-
 }
 
 void DebugBackend::Break()
@@ -1226,7 +1220,6 @@ void DebugBackend::Break()
 
 void DebugBackend::ToggleBreakpoint(lua_State* L, unsigned int scriptIndex, unsigned int line)
 {
-
     assert(GetIsLuaLoaded());
 
     CriticalSectionLock lock(m_criticalSection);
@@ -1251,8 +1244,7 @@ void DebugBackend::ToggleBreakpoint(lua_State* L, unsigned int scriptIndex, unsi
     */
 
     if (foundValidLine)
-    {
-        
+    {        
         bool breakpointSet = script->ToggleBreakpoint(line);
 
         if(breakpointSet)
@@ -1262,6 +1254,7 @@ void DebugBackend::ToggleBreakpoint(lua_State* L, unsigned int scriptIndex, unsi
         else
         {
             //Check to see if this was the last active breakpoint set if so switch back to fast mode
+			// 删除了最后的断点
             if(!GetHaveActiveBreakpoints())
             {
                 for(StateToVmMap::iterator it = m_stateToVm.begin(); it != m_stateToVm.end(); it++)
@@ -1276,11 +1269,9 @@ void DebugBackend::ToggleBreakpoint(lua_State* L, unsigned int scriptIndex, unsi
         m_eventChannel.WriteUInt32(reinterpret_cast<int>(L));  
         m_eventChannel.WriteUInt32(scriptIndex);
         m_eventChannel.WriteUInt32(line);
-        m_eventChannel.WriteUInt32(breakpointSet);
-        m_eventChannel.Flush();
-    
+        m_eventChannel.WriteUInt32(breakpointSet);	// 设置还是删除了断点
+        m_eventChannel.Flush();    
     }
-
 }
 
 void DebugBackend::BreakpointsActiveForScript(int scriptIndex)
@@ -1304,7 +1295,6 @@ bool DebugBackend::GetHaveActiveBreakpoints(){
 
 void DebugBackend::SetHaveActiveBreakpoints(bool breakpointsActive)
 {
-
     //m_HookLock.Enter();
 
     for(StateToVmMap::iterator it = m_stateToVm.begin(); it != m_stateToVm.end(); it++)
@@ -1457,8 +1447,7 @@ int DebugBackend::Call(unsigned long api, lua_State* L, int nargs, int nresults,
             result = lua_pcall_dll(api, L, nargs, nresults, errorHandler);
 
             // Remove our error handler from the stack.
-            lua_remove_dll(api, L, errorHandler);
-        
+            lua_remove_dll(api, L, errorHandler);        
         }
         else
         {
@@ -1916,7 +1905,6 @@ void DebugBackend::SetUpValues(unsigned long api, lua_State* L, int stackLevel, 
 
 bool DebugBackend::Evaluate(unsigned long api, lua_State* L, const std::string& expression, int stackLevel, std::string& result)
 {
-
     if (!GetIsLuaLoaded())
     {
         return false;
@@ -1926,7 +1914,6 @@ bool DebugBackend::Evaluate(unsigned long api, lua_State* L, const std::string& 
     // we sent the front end the call stack.
 
     {
-
         CriticalSectionLock lock(m_criticalSection);
 
         StateToVmMap::iterator stateIterator = m_stateToVm.find(L);
@@ -1935,8 +1922,7 @@ bool DebugBackend::Evaluate(unsigned long api, lua_State* L, const std::string& 
         if (stateIterator != m_stateToVm.end())
         {
             stackLevel += stateIterator->second->stackTop;
-        }
-    
+        }    
     }
 
     int t1 = lua_gettop_dll(api, L);

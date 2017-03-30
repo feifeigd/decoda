@@ -1,4 +1,4 @@
-/*
+﻿/*
 
 Decoda
 Copyright (C) 2007-2013 Unknown Worlds Entertainment, Inc. 
@@ -88,6 +88,7 @@ public:
  
     /**
      * Starts a new process that will be debugged.
+	 F5方式启动启动被调试进程
      */
     bool Start(const char* command, const char* commandArguments, const char* currentDirectory, const char* symbolsDirectory, bool debug, bool startBroken);
 
@@ -99,6 +100,7 @@ public:
 
     /**
      * Attaches the debugger to a currently running process.
+	 附加被调试进程
      */
     bool Attach(unsigned int processId, const char* symbolsDirectory);
 
@@ -116,6 +118,7 @@ public:
 
     /**
      * Instructs the debugger to continue until it hits the next breakpoint.
+	 @param vm是后端lua_State*
      */
     void Continue(unsigned int vm);
 
@@ -316,12 +319,22 @@ private:
      */
     void OutputError(DWORD error);
 
+	void OnException(EXCEPTION_DEBUG_INFO const& info, PROCESS_INFORMATION const& processInfo, size_t& entryPoint, bool& done, BYTE& breakPointData, DWORD& continueStatus);
+
+	void OnProcessCreated(PROCESS_INFORMATION const& processInfo, CREATE_PROCESS_DEBUG_INFO const& info, size_t& entryPoint, BYTE& breakPointData );
+	void OnProcessExited( EXIT_PROCESS_DEBUG_INFO const& ExitProcess );
+	void OnThreadCreated( CREATE_THREAD_DEBUG_INFO const& CreateThread );
+	void OnThreadExited( EXIT_THREAD_DEBUG_INFO const& ExitThread );
+	void OnDllLoaded( LOAD_DLL_DEBUG_INFO const& LoadDll );
+	void OnDllUnloaded( UNLOAD_DLL_DEBUG_INFO const& UnloadDll );
+	void OnOutputDebugString(PROCESS_INFORMATION const& processInfo, OUTPUT_DEBUG_STRING_INFO const& DebugString );
+	void OnRipEvent( RIP_INFO const& RipInfo );
 private:
 
     static DebugFrontend*       s_instance;
 
-    DWORD                       m_processId;
-    HANDLE                      m_process;
+    DWORD                       m_processId;	///< 正在调试的进程id
+    HANDLE                      m_process;		///< 正在调试的进程句柄
 
     wxEvtHandler*               m_eventHandler;    
     Channel                     m_eventChannel;

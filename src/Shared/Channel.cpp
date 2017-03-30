@@ -92,7 +92,6 @@ bool Channel::WaitForConnection()
 
 void Channel::Destroy()
 {
-
     if (m_creator)
     {
         FlushFileBuffers(m_pipe);
@@ -129,7 +128,6 @@ void Channel::Destroy()
 
 bool Channel::Write(const void* buffer, unsigned int length)
 {
-
     assert(m_pipe != INVALID_HANDLE_VALUE);
 
     if (length == 0)
@@ -164,13 +162,17 @@ bool Channel::Write(const void* buffer, unsigned int length)
     }
 
     return result == TRUE;
-
 }
 
 bool Channel::WriteUInt32(unsigned int value)
 {
     DWORD temp = value;
     return Write(&temp, 4);
+}
+
+bool Channel::WriteUInt64(uint64_t value)
+{
+	return Write(&value, sizeof(value));
 }
 
 bool Channel::WriteString(const char* value)
@@ -217,6 +219,17 @@ bool Channel::ReadUInt32(unsigned int& value)
     return true;
 }
 
+bool Channel::ReadUInt64(uint64_t& value)
+{
+	uint64_t temp;
+	if (!Read(&temp, sizeof(temp)))
+	{
+		return false;
+	}
+	value = temp;
+	return true;
+}
+
 bool Channel::ReadString(std::string& value)
 {
     
@@ -255,7 +268,6 @@ bool Channel::ReadString(std::string& value)
 
 bool Channel::ReadBool(bool& value)
 {
-
     unsigned int temp;
 
     if (ReadUInt32(temp))
@@ -265,12 +277,10 @@ bool Channel::ReadBool(bool& value)
     }
 
     return false;
-
 }
 
 bool Channel::Read(void* buffer, unsigned int length)
 {
-
     assert(m_pipe != INVALID_HANDLE_VALUE);
     
     if (length == 0)
@@ -288,12 +298,10 @@ bool Channel::Read(void* buffer, unsigned int length)
 
     if (result == FALSE)
     {
-
         DWORD error = GetLastError();
 
         if (error == ERROR_IO_PENDING)
-        {
-        
+        {        
             // Wait for the operation to complete.
             
             HANDLE events[] =
@@ -312,14 +320,11 @@ bool Channel::Read(void* buffer, unsigned int length)
             else if (GetOverlappedResult(m_pipe, &overlapped, &numBytesRead, FALSE))
             {
                 result = (numBytesRead == length);
-            }
-        
+            }        
         }
-
     }
 
     return result == TRUE;
-
 }
 
 void Channel::Flush()

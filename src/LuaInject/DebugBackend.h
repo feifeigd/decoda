@@ -1,4 +1,4 @@
-/*
+﻿/*
 
 Decoda
 Copyright (C) 2007-2013 Unknown Worlds Entertainment, Inc. 
@@ -245,6 +245,7 @@ private:
         
         bool HasBreakPointInRange(unsigned int start, unsigned int end) const;
 
+		/// @param 设置断点还是删除断点
         bool ToggleBreakpoint(unsigned int line);
 
         bool HasBreakpointsActive();
@@ -254,7 +255,7 @@ private:
         std::string                 name;
         std::string                 source;
         std::string                 title;
-        std::vector<unsigned int>   breakpoints;    // Lines that have breakpoints on them.
+        std::vector<unsigned int>   breakpoints;    // Lines that have breakpoints on them.标记哪些行设置了断点
         std::vector<unsigned int>   validLines;     // Lines that can have breakpoints on them.
 
     };
@@ -284,6 +285,7 @@ private:
 
     /**
      * Entry point into the command handling thread.
+	 接收前端的消息
      */
     void CommandThreadProc();
 
@@ -601,10 +603,10 @@ private:
     std::vector<Script*>            m_scripts;
     NameToScriptMap                 m_nameToScript;
 
-    Channel                         m_eventChannel;
+    Channel                         m_eventChannel;	// 发给前端
 
     HANDLE                          m_commandThread;
-    Channel                         m_commandChannel;
+    Channel                         m_commandChannel;	// 接收前端的消息
 
     std::list<ClassInfo>            m_classInfos;
     std::vector<VirtualMachine*>    m_vms;

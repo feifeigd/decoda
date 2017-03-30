@@ -1,4 +1,4 @@
-/*
+﻿/*
 
 Decoda
 Copyright (C) 2007-2013 Unknown Worlds Entertainment, Inc. 
@@ -37,6 +37,7 @@ enum CodeState
     CodeState_Binary            = 2,    // The code was loaded as a binary/compiled file
 };
 
+/// 后端发给前端
 enum EventId
 {
     EventId_Initialize          = 11,   // Sent when the backend is ready to have its initialize function called
@@ -48,10 +49,11 @@ enum EventId
     EventId_Exception           = 6,    // Sent when the script encounters an exception (e.g. crash).
     EventId_LoadError           = 7,    // Sent when there is an error loading a script (e.g. syntax error).
     EventId_Message             = 9,    // Event containing a string message from the debugger.
-    EventId_SessionEnd          = 8,    // This is used internally and shouldn't be sent.
+    EventId_SessionEnd          = 8,    // This is used internally and shouldn't be sent.仅是前端用
     EventId_NameVM              = 10,   // Sent when the name of a VM is set.
 };
 
+/// 前端发给后端
 enum CommandId
 {
     CommandId_Continue          = 1,    // Continues execution until the next break point.

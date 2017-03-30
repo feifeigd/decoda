@@ -70,6 +70,11 @@ public:
      * Writes a 32-bit unsigned integer to the channel and returns immediately.
      */
     bool WriteUInt32(unsigned int value);
+    /**
+     * Writes a 64-bit unsigned integer to the channel and returns immediately.
+     */
+	typedef _ULonglong uint64_t;
+    bool WriteUInt64(uint64_t value);
 
     /**
      * Writes a string to the channel and returns immediately.
@@ -91,6 +96,11 @@ public:
      * until the data is available.
      */
     bool ReadUInt32(unsigned int& value);
+    /**
+     * Reads a 64-bit unsigned integer from the channel. This operation blocks
+     * until the data is available.
+     */
+    bool ReadUInt64(uint64_t& value);
 
     /**
      * Reads a string from the channel. This operation blocks until the
